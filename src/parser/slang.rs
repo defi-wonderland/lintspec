@@ -309,7 +309,7 @@ impl Extract for FunctionDefinition {
             ]
             @function_attr attributes:[FunctionAttributes]
             returns:[ReturnsDeclaration
-                variables:[ParametersDeclaration
+                @return_params variables:[ParametersDeclaration
                     @function_returns parameters:[Parameters]
                 ]
             ]?
@@ -324,21 +324,13 @@ impl Extract for FunctionDefinition {
         let params = capture(&m, "function_params")?;
         let attributes = capture(&m, "function_attr")?;
         let returns = capture_opt(&m, "function_returns")?;
+        let return_params = capture_opt(&m, "return_params")?;
         let start = find_definition_start(&func).unwrap_or_else(|| textrange(func.text_range()));
-
-        let end = if returns.is_some() {
-            let mut cursor = func.spawn();
-            cursor.go_to_next_nonterminal_with_kind(NonterminalKind::ReturnsDeclaration);
-            cursor.go_to_next_terminal_with_kind(TerminalKind::CloseParen);
-            textrange(cursor.text_range())
-        } else {
-            textrange(
-                returns
-                    .as_ref()
-                    .map_or_else(|| attributes.text_range(), Cursor::text_range),
-            )
-        };
-
+        let end = textrange(
+            return_params
+                .as_ref()
+                .map_or_else(|| attributes.text_range(), Cursor::text_range),
+        );
         let span = start.start..end.end;
         let name = name.node().unparse().trim().to_string();
         let params = extract_params(&params, NonterminalKind::Parameter);
@@ -366,7 +358,7 @@ impl Extract for ModifierDefinition {
         Query::parse(
             "@modifier [ModifierDefinition
             @modifier_name name:[Identifier]
-            parameters:[ParametersDeclaration
+            @modifier_param_block parameters:[ParametersDeclaration
                 @modifier_params parameters:[Parameters]
             ]?
             @modifier_attr attributes:[ModifierAttributes]
@@ -379,23 +371,15 @@ impl Extract for ModifierDefinition {
         let modifier = capture(&m, "modifier")?;
         let name = capture(&m, "modifier_name")?;
         let params = capture_opt(&m, "modifier_params")?;
+        let modifier_param_block = capture_opt(&m, "modifier_param_block")?;
         let attr = capture(&m, "modifier_attr")?;
         let start =
             find_definition_start(&modifier).unwrap_or_else(|| textrange(modifier.text_range()));
-
-        let end = if params.is_some() {
-            let mut cursor = modifier.spawn();
-            cursor.go_to_next_nonterminal_with_kind(NonterminalKind::ParametersDeclaration);
-            cursor.go_to_next_terminal_with_kind(TerminalKind::CloseParen);
-            textrange(cursor.text_range())
-        } else {
-            textrange(
-                params
-                    .as_ref()
-                    .map_or_else(|| attr.text_range(), Cursor::text_range),
-            )
-        };
-
+        let end = textrange(
+            modifier_param_block
+                .as_ref()
+                .map_or_else(|| attr.text_range(), Cursor::text_range),
+        );
         let span = start.start..end.end;
         let name = name.node().unparse().trim().to_string();
         let params = params
