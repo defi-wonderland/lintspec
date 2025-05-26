@@ -324,13 +324,21 @@ impl Extract for FunctionDefinition {
         let params = capture(&m, "function_params")?;
         let attributes = capture(&m, "function_attr")?;
         let returns = capture_opt(&m, "function_returns")?;
-
         let start = find_definition_start(&func).unwrap_or_else(|| textrange(func.text_range()));
-        let end = textrange(
-            returns
-                .as_ref()
-                .map_or_else(|| attributes.text_range(), Cursor::text_range),
-        );
+
+        let end = if returns.is_some() {
+            let mut cursor = func.spawn();
+            cursor.go_to_next_nonterminal_with_kind(NonterminalKind::ReturnsDeclaration);
+            cursor.go_to_next_terminal_with_kind(TerminalKind::CloseParen);
+            textrange(cursor.text_range())
+        } else {
+            textrange(
+                returns
+                    .as_ref()
+                    .map_or_else(|| attributes.text_range(), Cursor::text_range),
+            )
+        };
+
         let span = start.start..end.end;
         let name = name.node().unparse().trim().to_string();
         let params = extract_params(&params, NonterminalKind::Parameter);
@@ -372,14 +380,22 @@ impl Extract for ModifierDefinition {
         let name = capture(&m, "modifier_name")?;
         let params = capture_opt(&m, "modifier_params")?;
         let attr = capture(&m, "modifier_attr")?;
-
         let start =
             find_definition_start(&modifier).unwrap_or_else(|| textrange(modifier.text_range()));
-        let end = textrange(
-            params
-                .as_ref()
-                .map_or_else(|| attr.text_range(), Cursor::text_range),
-        );
+
+        let end = if params.is_some() {
+            let mut cursor = modifier.spawn();
+            cursor.go_to_next_nonterminal_with_kind(NonterminalKind::ParametersDeclaration);
+            cursor.go_to_next_terminal_with_kind(TerminalKind::CloseParen);
+            textrange(cursor.text_range())
+        } else {
+            textrange(
+                params
+                    .as_ref()
+                    .map_or_else(|| attr.text_range(), Cursor::text_range),
+            )
+        };
+
         let span = start.start..end.end;
         let name = name.node().unparse().trim().to_string();
         let params = params
